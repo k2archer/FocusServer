@@ -1,0 +1,6 @@
+rootProject.name = 'tomato'
+//includeFlat 'jmeter_test'
+include 'lib_base'
+
+//include('tomato_base')
+includeFlat('tomato_base')

@@ -1,0 +1,58 @@
+plugins {
+    id 'java'
+}
+
+group 'org.example'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+//sourceSets {
+//    main {
+//        java {
+////            srcDirs = ['../omato_base/src/main/java']
+//        }
+//    }
+//}
+
+dependencies {
+    testImplementation group: 'junit', name: 'junit', version: '4.12'
+
+//    implementation(project(":lib_base"))
+//    implementation project(":tomato_server")
+
+    implementation project(":tomato_base")
+
+    // https://mvnrepository.com/artifact/org.java-websocket/Java-WebSocket
+    implementation('org.java-websocket:Java-WebSocket:1.5.2')
+
+    implementation 'com.google.code.gson:gson:2.8.6'
+
+    // https://mvnrepository.com/artifact/com.alibaba/fastjson
+    implementation 'com.alibaba:fastjson:1.2.79'
+
+    // https://mvnrepository.com/artifact/org.apache.jmeter/ApacheJMeter_core
+    implementation 'org.apache.jmeter:ApacheJMeter_core:5.0'
+    // https://mvnrepository.com/artifact/org.apache.jmeter/ApacheJMeter_java
+    implementation 'org.apache.jmeter:ApacheJMeter_java:5.0'
+    // https://mvnrepository.com/artifact/org.apache.jmeter/ApacheJMeter_http
+    implementation 'org.apache.jmeter:ApacheJMeter_http:5.0'
+
+    /** ---------- 网络相关 ----------**/
+    /* Retrofit2 */
+    implementation 'com.squareup.retrofit2:retrofit:2.3.0'
+    implementation 'com.squareup.retrofit2:converter-gson:2.3.0'
+    //
+    implementation 'com.squareup.okhttp3:okhttp:3.8.0'
+    implementation 'com.squareup.okhttp3:logging-interceptor:3.8.0'
+    /* OkHttp3 MockWebServer */
+//    debugImplementation 'com.squareup.okhttp3:mockwebserver:3.8.0'
+    implementation 'com.squareup.okhttp3:logging-interceptor:3.8.0'
+    /* Android 调试工具 Stetho  */
+//    debugImplementation 'com.facebook.stetho:stetho:1.5.1'
+//    implementation  'com.facebook.stetho:stetho-okhttp3:1.5.1'
+    /** ---------- 网络相关 End ----------**/
+
+}
