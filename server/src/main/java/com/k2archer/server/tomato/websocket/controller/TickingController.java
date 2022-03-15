@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.locks.ReentrantLock;
 
 @RestController
 public class TickingController {
@@ -28,7 +29,7 @@ public class TickingController {
 
     private final Map<Long, LastTicking> lastTicking = new HashMap<>();
 
-    private static final Long lock = new Long(0);
+    private ReentrantLock reentrantLock = new ReentrantLock(true);
 
     /**
      * @api {WebSocket} /websocket/{token}
@@ -100,19 +101,20 @@ public class TickingController {
         // 记录当前 Ticking 类型
         lastType.put(user.getId(), tickingInfo.getType());
 
-        synchronized (TickingController.class) {
+//        synchronized (TickingController.class)
+        reentrantLock.lock();
+        {
 //        synchronized (lastTicking) {
-            LastTicking last = lastTicking.get(user.getId());
-            if (last != null
-                    && last.getEndTime() > System.currentTimeMillis()
-            ) {
+
+            Ticking ti = tickingService.getTickingOnClock(user.getId());
+            if (ti != null) {
                 TickingInfo t = new TickingInfo();
                 t.setAction(TickingAction.ON_TICKING);
-                t.setTickingId(last.getTickingId());
-                t.setEndTime(last.getEndTime());
-                WebSocketResponse<TickingInfo> response = new WebSocketResponse<TickingInfo>(
-                        ResponseStateCode.FAILURE, new Gson().toJson(last) + " is Ticking " + new Date(t.getEndTime()), WebSocketMessage.MessageAction.TICKING, t);
-                return response;
+                t.setTickingId(ti.getTickingid());
+                t.setEndTime(ti.getEndTime().getTime());
+                reentrantLock.unlock();
+                return new WebSocketResponse<TickingInfo>(ResponseStateCode.FAILURE, " Ticking is ticking...",
+                        WebSocketMessage.MessageAction.TICKING, t);
             }
 
 
@@ -120,9 +122,6 @@ public class TickingController {
             if (lastTicking.get(user.getId()) == null) {
                 lastTicking.put(user.getId(), new LastTicking());
             }
-            last = lastTicking.get(user.getId());
-            last.setTickingId(tickingInfo.getTickingId());
-            last.setEndTime(tickingInfo.getEndTime());
 
             Ticking ticking = Ticking.BuildFromTickingInfo(tickingInfo);
             Ticking resultTicking = tickingService.addTicking(user.getId(), ticking);
@@ -130,12 +129,13 @@ public class TickingController {
             if (resultTicking != null) {
                 tickingInfo.setTickingId(resultTicking.getTickingid());
                 tickingInfo.setEffect(new Date(tickingInfo.getEndTime()) + "");
+                reentrantLock.unlock();
                 return new WebSocketResponse<TickingInfo>(ResponseStateCode.SUCCESS, "", WebSocketResponse.Action.TICKING, tickingInfo);
             } else {
+                reentrantLock.unlock();
                 return new WebSocketResponse<TickingInfo>(ResponseStateCode.FAILURE, "创建 Ticking 失败", "", null);
             }
         }
-
         //
 
         // response
@@ -178,21 +178,22 @@ public class TickingController {
 
         ticking.setTickingState(tickingInfo.getState());
 
-        synchronized (TickingController.class) {
-//        synchronized (lastTicking) {
-            LastTicking last = lastTicking.get(user.getId());
-            if (last != null && last.getEndTime() < System.currentTimeMillis()) {
-
+        reentrantLock.lock();
+        {
+            Ticking ti = tickingService.getTickingOnClock(user.getId());
+            if (ti == null) {
                 WebSocketResponse<TickingInfo> response = new WebSocketResponse<TickingInfo>(
-                        ResponseStateCode.FAILURE, new Gson().toJson(last) + " is finish", "", null);
+                        ResponseStateCode.FAILURE, "ticking is finish", "", null);
+                reentrantLock.unlock();
                 return response;
             }
 
-            lastTicking.remove(user.getId());
+                lastTicking.remove(user.getId());
             ticking.setUpdatedBy(user.getName());
             ticking.setUpdatedTime(System.currentTimeMillis());
             int updateResult = tickingService.updateTicking(ticking);
         }
+        reentrantLock.unlock();
 
         // response
         return new WebSocketResponse(com.k2archer.common.ResponseStateCode.SUCCESS, "",

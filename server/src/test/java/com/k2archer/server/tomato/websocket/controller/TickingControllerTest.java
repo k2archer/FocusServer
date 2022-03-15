@@ -1,10 +1,13 @@
 package com.k2archer.server.tomato.websocket.controller;
 
+import com.google.gson.internal.$Gson$Preconditions;
+import com.k2archer.server.tomato.TomatoApplication;
 import org.java_websocket.handshake.ServerHandshake;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import org.java_websocket.client.WebSocketClient;
+import org.omg.CORBA.Environment;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.MockMvc;
@@ -14,17 +17,34 @@ import org.springframework.web.context.WebApplicationContext;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Semaphore;
 
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(classes = {TomatoApplication.class}, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class TickingControllerTest {
+
+    MockMvc mockMvc;
+
+    @Autowired
+    WebApplicationContext wc;
+
+    @BeforeEach
+    public void beforeSetUp() {
+        this.mockMvc = MockMvcBuilders.webAppContextSetup(wc).build();
+    }
+
+
+    CountDownLatch countDownLatch = new CountDownLatch(1);
 
     @Test
     void testStartTicking() throws MalformedURLException {
 
         URI url = null;
         try {
-            url = new URI("ws://localhost:8080/websocket/token11");
+            String port = wc.getEnvironment().getProperty("local.server.port");
+
+            url = new URI("ws://localhost:" + port + "/websocket/token11");
         } catch (URISyntaxException e) {
             e.printStackTrace();
         }
@@ -32,7 +52,7 @@ class TickingControllerTest {
             @Override
             public void onOpen(ServerHandshake handshakedata) {
 
-
+                countDownLatch.countDown();
             }
 
             @Override
@@ -51,6 +71,13 @@ class TickingControllerTest {
             }
         };
         webSocketClient.connect();
+
+        try {
+            countDownLatch.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
 
 //        WebSocketClient webSocketClient = new WebSocetC
     }

@@ -53,6 +53,24 @@ public interface TickingMapper {
     @SelectKey(statement = "select tickingid from t_ticking where tickingid= #{tickingid} ", keyProperty = "tickingid", before = false, resultType =long.class )
     long addTicking(Ticking ticking);
 
-    @Select("SELECT * FROM t_ticking WHERE user_id=#{user_id} and (NOW() - end_time)  <= ticking and ticking_state=3")
+    @Select("SELECT * FROM t_ticking WHERE user_id=#{user_id} and (NOW() - end_time)  <= ticking and ticking_state=1 LIMIT 1")
+    @Results( value = {
+            @Result(id = true, column = "tickingid", property = "tickingid"),
+            @Result(column = "user_id", property = "userId"),
+            @Result(column = "ticking_name", property = "tickingName"),
+            @Result(column = "ticking_type", property = "tickingType"),
+            @Result(column = "start_time", property = "startTime"),
+            @Result(column = "end_time", property = "endTime"),
+            @Result(column = "ticking", property = "ticking"),
+            @Result(column = "ticking_state", property = "tickingState"),
+            @Result(column = "task_intention", property = "taskIntention"),
+            @Result(column = "task_effect", property = "taskEffect"),
+            @Result(column = "revision", property = "revision"),
+            @Result(column = "end_time", property = "taskEffect"),
+            @Result(column = "created_by", property = "createdBy"),
+            @Result(column = "created_time", property = "createdTime"),
+            @Result(column = "updated_by", property = "updatedBy"),
+            @Result(column = "updated_time", property = "updatedTime"),
+    })
     Ticking getTickingOnClock(@Param("user_id")long userId);
 }

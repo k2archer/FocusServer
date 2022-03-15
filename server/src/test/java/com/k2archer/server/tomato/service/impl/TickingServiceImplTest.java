@@ -61,7 +61,9 @@ class TickingServiceImplTest {
                 "\"state\":1,\"ticking\":5,\"tickingId\":103000000043011,\"type\":1}}";
         GsonResponseParse<TickingInfo> parse = new GsonResponseParse<TickingInfo>() {
         };
-        ticking = TickingInfo.ConvertToTicking(parse.deal(str_info));
+//        ticking = TickingInfo.ConvertToTicking(parse.deal(str_info));
+        ticking = new Ticking();
+
         ticking.setUserId(1L);
         ticking.setUpdatedTime(new Date(System.currentTimeMillis()));
 
