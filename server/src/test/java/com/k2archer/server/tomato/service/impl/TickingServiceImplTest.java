@@ -1,6 +1,6 @@
 package com.k2archer.server.tomato.service.impl;
 
-import com.k2archer.common.utils.GsonResponseParse;
+import com.google.gson.Gson;
 import com.k2archer.server.tomato.bean.dao.Ticking;
 import com.k2archer.common.bo.TickingInfo;
 import org.junit.jupiter.api.Test;
@@ -25,13 +25,15 @@ class TickingServiceImplTest {
         Ticking ticking = new Ticking();
         ticking.setTickingid(tickingService.generateTickingId());
         ticking.setTicking(25L);
+        ticking.setTickingState(TickingInfo.TickingState.TICKING.getCode());
         long startTime = System.currentTimeMillis();
         ticking.setStartTime(startTime);
         ticking.setEndTime(startTime + ticking.getTicking() * 1000);
         ticking.setUserId(user_id);
         tickingService.addTicking(ticking);
 
-        assertNotNull(tickingService.getTickingOnClock(user_id));
+        Ticking t = tickingService.getTickingOnClock(user_id);
+        assertNotNull(t);
     }
 
     @Test
@@ -42,29 +44,28 @@ class TickingServiceImplTest {
     @Test
     void updateTicking() {
 
-
         Ticking ticking = new Ticking();
-
         int result = tickingService.updateTicking(ticking);
         assertEquals(0, result);
-
-        ticking.setTickingid(103000000043011L);
-        ticking.setUserId(1L);
+//
+        addTicking();
+        Ticking t = tickingService.getTickingOnClock(1);
+        ticking.setTickingid(t.getTickingid());
+        ticking.setUserId(t.getUserId());
         result = tickingService.updateTicking(ticking);
         assertEquals(1, result);
 //
         Ticking result_ticking = tickingService.getTicking(ticking.getUserId(), ticking.getTickingid());
         assertNotNull(result_ticking);
 
-        String str_info = "{\"action\":\"ticking\",\"data\":{\"action\":\"finishTicking\"," +
+        String str_info = "{\"action\":\"finishTicking\"," +
                 "\"endTime\":1646315440204,\"name\":\"czar\",\"startTime\":1646315435204," +
-                "\"state\":1,\"ticking\":5,\"tickingId\":103000000043011,\"type\":1}}";
-        GsonResponseParse<TickingInfo> parse = new GsonResponseParse<TickingInfo>() {
-        };
-//        ticking = TickingInfo.ConvertToTicking(parse.deal(str_info));
-        ticking = new Ticking();
+                "\"state\":1,\"ticking\":5,\"type\":1}";
+        TickingInfo ti = new Gson().fromJson(str_info, TickingInfo.class);
+        ticking = Ticking.BuildFromTickingInfo(ti);
+        ticking.setUserId(t.getUserId());
+        ticking.setTickingid(t.getTickingid());
 
-        ticking.setUserId(1L);
         ticking.setUpdatedTime(new Date(System.currentTimeMillis()));
 
         result = tickingService.updateTicking(ticking);

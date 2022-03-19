@@ -2,11 +2,11 @@ plugins {
     id 'org.springframework.boot' version '2.6.3'
     id 'io.spring.dependency-management' version '1.0.11.RELEASE'
     id 'java'
+    id 'jacoco'
 }
 
 group = 'com.k2archer.server'
 version = '0.0.1'
-sourceCompatibility = '8'
 
 configurations {
     compileOnly {
@@ -16,6 +16,30 @@ configurations {
 
 repositories {
     mavenCentral()
+}
+tasks.withType(JavaCompile) {
+    options.encoding = "UTF-8"
+}
+jacoco {
+    toolVersion = "0.8.5"
+}
+
+[compileJava, compileTestJava, javadoc]*.options*.encoding = 'UTF-8'
+
+
+jacocoTestReport {
+    dependsOn test
+    group = "Reporting"
+    description = "Generate Jacoco coverage reports"
+
+    reports {
+        xml.enabled false
+        html.enabled true
+    }
+}
+
+test{
+    finalizedBy jacocoTestReport
 }
 
 dependencies {

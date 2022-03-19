@@ -19,6 +19,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -44,19 +45,16 @@ class UserControllerTest {
         loginInfo.setUsername("kwei");
         loginInfo.setPassword("123");
 
-        MvcResult result = null;
-        String boy = null;
-
         MockHttpServletRequest request = new MockHttpServletRequest();
         MockHttpServletRequestBuilder requestBuilder = post("/api/user/login")
                 .contentType(MediaType.APPLICATION_JSON)  //数据的格式
                 .content(new Gson().toJson(loginInfo));
 
-        result = this.mockMvc.perform(requestBuilder)
+        MvcResult result = this.mockMvc.perform(requestBuilder)
                 .andDo(MockMvcResultHandlers.print()).andExpect(MockMvcResultMatchers.status().isOk())
                 .andReturn();
 
-        boy = result.getResponse().getContentAsString();
+        String boy = result.getResponse().getContentAsString();
         ResponseBody response = new Gson().fromJson(boy, ResponseBody.class);
 
         //断言 是否和预期相等
@@ -67,19 +65,29 @@ class UserControllerTest {
 
     @Test
     public void whenPostRequestToUsersAndValidUser_thenCorrectResponse() throws Exception {
-        MediaType textPlainUtf8 = new MediaType(MediaType.TEXT_PLAIN, Charset.forName("UTF-8"));
+        MediaType textPlainUtf8 = new MediaType(MediaType.TEXT_PLAIN, StandardCharsets.UTF_8);
 //        String user = "{\"name\": \"bob\", \"email\" : \"bob@domain.com\"}";
 
         LoginInfo loginInfo = new LoginInfo();
 //        loginInfo.setUsername("kwei");
 //        loginInfo.setPassword("1123");
-        mockMvc.perform(post("/api/user/login")
-                .content(new Gson().toJson(loginInfo))
-                .contentType(MediaType.APPLICATION_JSON_UTF8))
-                .andExpect(MockMvcResultMatchers.status().is4xxClientError());
+//        mockMvc.perform(post("/api/user/login")
+//                .content(new Gson().toJson(loginInfo))
+//                .contentType(MediaType.APPLICATION_JSON_UTF8))
+//                .andExpect(MockMvcResultMatchers.status().is4xxClientError());
 //                .andExpect(MockMvcResultMatchers.content().contentType(textPlainUtf8));
 
+        MvcResult result = mockMvc.perform(post("/api/user/login")
+                .content(new Gson().toJson(loginInfo))
+                .contentType(MediaType.APPLICATION_JSON_UTF8))
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andReturn();
 
+        String boy = result.getResponse().getContentAsString();
+        ResponseBody response = new Gson().fromJson(boy, ResponseBody.class);
+
+        //断言 是否和预期相等
+        assertEquals(response.getCode(), ResponseStateCode.FAILURE.getCode());
     }
 
 }

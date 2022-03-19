@@ -3,4 +3,6 @@ rootProject.name = 'tomato'
 include 'lib_base'
 
 //include('tomato_base')
+//includeFlat('tomato_base')
 includeFlat('tomato_base')
+project(':tomato_base').projectDir = "../tomato_base" as File

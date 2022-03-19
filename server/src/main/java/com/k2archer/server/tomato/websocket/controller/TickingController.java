@@ -17,7 +17,9 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Function;
 
 @RestController
 public class TickingController {
@@ -27,9 +29,7 @@ public class TickingController {
 
     private Map<Long, Integer> lastType = new HashMap<>();
 
-    private final Map<Long, LastTicking> lastTicking = new HashMap<>();
-
-    private ReentrantLock reentrantLock = new ReentrantLock(true);
+    private ConcurrentHashMap<Long, ReentrantLock> userLock = new ConcurrentHashMap<>();
 
     /**
      * @api {WebSocket} /websocket/{token}
@@ -69,7 +69,6 @@ public class TickingController {
          */
 
         // todo ... 启动一个任务
-//        tickingInfo.setTickingId(tickingService.generateTickingId());
         tickingInfo.setAction(TickingAction.START_TICKING);
         tickingInfo.setStartTime(System.currentTimeMillis());
 
@@ -98,30 +97,23 @@ public class TickingController {
         tickingInfo.setName(tickingInfo.getName());
         tickingInfo.setName("FirstTask"); // todo
 
-        // 记录当前 Ticking 类型
-        lastType.put(user.getId(), tickingInfo.getType());
-
-//        synchronized (TickingController.class)
-        reentrantLock.lock();
+        ReentrantLock currentUserLock = userLock.computeIfAbsent(user.getId(), k -> {
+            return new ReentrantLock();
+        });
+        currentUserLock.lock();
         {
-//        synchronized (lastTicking) {
-
             Ticking ti = tickingService.getTickingOnClock(user.getId());
             if (ti != null) {
                 TickingInfo t = new TickingInfo();
                 t.setAction(TickingAction.ON_TICKING);
                 t.setTickingId(ti.getTickingid());
                 t.setEndTime(ti.getEndTime().getTime());
-                reentrantLock.unlock();
+                currentUserLock.unlock();
                 return new WebSocketResponse<TickingInfo>(ResponseStateCode.FAILURE, " Ticking is ticking...",
                         WebSocketMessage.MessageAction.TICKING, t);
             }
 
-
             tickingInfo.setTickingId(tickingService.generateTickingId());
-            if (lastTicking.get(user.getId()) == null) {
-                lastTicking.put(user.getId(), new LastTicking());
-            }
 
             Ticking ticking = Ticking.BuildFromTickingInfo(tickingInfo);
             Ticking resultTicking = tickingService.addTicking(user.getId(), ticking);
@@ -129,17 +121,16 @@ public class TickingController {
             if (resultTicking != null) {
                 tickingInfo.setTickingId(resultTicking.getTickingid());
                 tickingInfo.setEffect(new Date(tickingInfo.getEndTime()) + "");
-                reentrantLock.unlock();
+                currentUserLock.unlock();
                 return new WebSocketResponse<TickingInfo>(ResponseStateCode.SUCCESS, "", WebSocketResponse.Action.TICKING, tickingInfo);
             } else {
-                reentrantLock.unlock();
+                currentUserLock.unlock();
                 return new WebSocketResponse<TickingInfo>(ResponseStateCode.FAILURE, "创建 Ticking 失败", "", null);
             }
         }
         //
 
         // response
-
     }
 
 
@@ -178,22 +169,24 @@ public class TickingController {
 
         ticking.setTickingState(tickingInfo.getState());
 
-        reentrantLock.lock();
+        ReentrantLock currentUserLock = userLock.computeIfAbsent(user.getId(), k -> {
+            return new ReentrantLock();
+        });
+        currentUserLock.lock();
         {
             Ticking ti = tickingService.getTickingOnClock(user.getId());
             if (ti == null) {
                 WebSocketResponse<TickingInfo> response = new WebSocketResponse<TickingInfo>(
                         ResponseStateCode.FAILURE, "ticking is finish", "", null);
-                reentrantLock.unlock();
+                currentUserLock.unlock();
                 return response;
             }
 
-                lastTicking.remove(user.getId());
             ticking.setUpdatedBy(user.getName());
             ticking.setUpdatedTime(System.currentTimeMillis());
             int updateResult = tickingService.updateTicking(ticking);
         }
-        reentrantLock.unlock();
+        currentUserLock.unlock();
 
         // response
         return new WebSocketResponse(com.k2archer.common.ResponseStateCode.SUCCESS, "",
@@ -220,30 +213,40 @@ public class TickingController {
         tickingInfo.setAction(TickingAction.UPDATE_TICKING);
         tickingInfo.setState(TickingInfo.TickingState.FINISH);
 
-        Ticking ticking = tickingService.getTicking(user.getId(), tickingInfo.getTickingId());
-        if (ticking == null) {
-            return new WebSocketResponse<String>(ResponseStateCode.FAILURE, "更新 Ticking 失败", "", tickingInfo.getTickingId() + "");
-        }
-        ticking.setTickingName(tickingInfo.getName());
-        ticking.setTickingType(tickingInfo.getType());
-        ticking.setTickingState(tickingInfo.getState());
-        ticking.setTaskEffect(tickingInfo.getEffect());
+        ReentrantLock currentUserLock = userLock.computeIfAbsent(user.getId(), k -> {
+            return new ReentrantLock();
+        });
+        currentUserLock.lock();
+        {
+            Ticking ticking = tickingService.getTicking(user.getId(), tickingInfo.getTickingId());
+            if (ticking == null) {
+                currentUserLock.unlock();
+                return new WebSocketResponse<String>(ResponseStateCode.FAILURE, "更新 Ticking 失败", "", tickingInfo.getTickingId() + "");
+            }
+            ticking.setTickingName(tickingInfo.getName());
+            ticking.setTickingType(tickingInfo.getType());
+            ticking.setTickingState(tickingInfo.getState());
+            ticking.setTaskEffect(tickingInfo.getEffect());
 //        ticking.setTaskIntention(info.getIntention());
-        ticking.setUpdatedBy(user.getName());
-        ticking.setUpdatedTime(new Date(System.currentTimeMillis()));
+            ticking.setUpdatedBy(user.getName());
+            ticking.setUpdatedTime(new Date(System.currentTimeMillis()));
 
-        try {
-            tickingService.updateTicking(ticking);
-        } catch (TransientDataAccessResourceException e) {
+            try {
+                tickingService.updateTicking(ticking);
+            } catch (TransientDataAccessResourceException e) {
 //            e.printStackTrace();
-            return new WebSocketResponse<String>(ResponseStateCode.FAILURE, "更新 Ticking 失败", "", e.getMessage());
-        }
+                currentUserLock.unlock();
+                return new WebSocketResponse<String>(ResponseStateCode.FAILURE, "更新 Ticking 失败", "", e.getMessage());
+            }
 
-        // response
-        if (tickingService.updateTicking(ticking) > 0) {
-            return new WebSocketResponse<TickingInfo>(ResponseStateCode.SUCCESS, "", WebSocketResponse.Action.TICKING, tickingInfo);
-        } else {
-            return new WebSocketResponse<TickingInfo>(ResponseStateCode.FAILURE, "更新 Ticking 失败", "", null);
+            // response
+            if (tickingService.updateTicking(ticking) > 0) {
+                currentUserLock.unlock();
+                return new WebSocketResponse<TickingInfo>(ResponseStateCode.SUCCESS, "", WebSocketResponse.Action.TICKING, tickingInfo);
+            } else {
+                currentUserLock.unlock();
+                return new WebSocketResponse<TickingInfo>(ResponseStateCode.FAILURE, "更新 Ticking 失败", "", null);
+            }
         }
     }
 }
